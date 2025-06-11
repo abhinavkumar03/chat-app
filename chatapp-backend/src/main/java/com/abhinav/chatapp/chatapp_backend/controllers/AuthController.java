@@ -6,6 +6,7 @@ import com.abhinav.chatapp.chatapp_backend.entities.User;
 import com.abhinav.chatapp.chatapp_backend.playload.*;
 import com.abhinav.chatapp.chatapp_backend.repositories.UserRepository;
 import org.springframework.http.HttpStatus;
+import com.abhinav.chatapp.chatapp_backend.security.JwtUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -19,10 +20,12 @@ import java.util.Random;
 @RequestMapping("/api/auth")
 @CrossOrigin(AppConstants.FRONT_END_BASE_URL)
 public class AuthController {
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
-    public AuthController(UserRepository userRepository) {
+    public AuthController(UserRepository userRepository, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/signup")
@@ -105,11 +108,14 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
         }
 
+        String token = jwtUtil.generateToken(user);
+
         LoginResponse response = new LoginResponse(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                user.isEmailVerified()
+                user.isEmailVerified(),
+                token
         );
 
         return ResponseEntity.ok(response);
