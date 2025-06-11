@@ -5,6 +5,7 @@ import com.abhinav.chatapp.chatapp_backend.config.AppConstants;
 import com.abhinav.chatapp.chatapp_backend.entities.User;
 import com.abhinav.chatapp.chatapp_backend.playload.*;
 import com.abhinav.chatapp.chatapp_backend.repositories.UserRepository;
+import com.abhinav.chatapp.chatapp_backend.services.EmailService;
 import org.springframework.http.HttpStatus;
 import com.abhinav.chatapp.chatapp_backend.security.JwtUtil;
 import org.springframework.http.ResponseEntity;
@@ -22,10 +23,12 @@ import java.util.Random;
 public class AuthController {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
+    private final EmailService emailService;
 
-    public AuthController(UserRepository userRepository, JwtUtil jwtUtil) {
+    public AuthController(UserRepository userRepository, JwtUtil jwtUtil, EmailService emailService) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
+        this.emailService = emailService;
     }
 
     @PostMapping("/signup")
@@ -153,13 +156,25 @@ public class AuthController {
 
         user.setEmailOtp(otp);
         user.setOtpGeneratedAt(LocalDateTime.now());
-
         userRepository.save(user);
 
-        System.out.println("Simulated OTP for " + user.getEmail() + ": " + otp); // simulate sending
+        try {
+            String subject = "Your OTP Code";
+            String body = "<p>Hello <b>" + user.getName() + "</b>,</p>" +
+                    "<p>Your OTP is: <b>" + otp + "</b></p>" +
+                    "<p>This OTP is valid for 10 minutes.</p>" +
+                    "<br><p>Regards,<br>ChatApp Team</p>";
 
-        return ResponseEntity.ok("OTP sent successfully (check logs)");
+            emailService.sendEmail(user.getEmail(), subject, body);
+            return ResponseEntity.ok("OTP sent successfully to email");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to send OTP email: " + e.getMessage());
+        }
+
     }
+
 
     @PostMapping("/verify-otp")
     public ResponseEntity<?> verifyOtp(@RequestBody VerifyOtpRequest request) {
