@@ -1,15 +1,19 @@
 import React, { useEffect, useRef, useState } from "react";
 import { MdAttachFile, MdSend, MdLogout, MdPerson, MdRoom } from "react-icons/md";
 import useChatContext from "../context/ChatContext";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import SockJS from "sockjs-client";
 import { Stomp } from "@stomp/stompjs";
 import toast from "react-hot-toast";
 import { baseURL } from "../config/AxiosHelper";
 import { getMessagess } from "../services/RoomService";
 import { timeAgo } from "../config/helper";
+import { useAuth } from "../context/AuthContext";
+import Navigation from "./Navigation";
 
 const ChatPage = () => {
+  const { roomId: urlRoomId } = useParams();
+  const { user } = useAuth();
   const {
     roomId,
     currentUser,
@@ -30,17 +34,23 @@ const ChatPage = () => {
   const chatBoxRef = useRef(null);
   const [stompClient, setStompClient] = useState(null);
 
+  // Use URL roomId if available, otherwise use context roomId
+  const currentRoomId = urlRoomId || roomId;
+
   useEffect(() => {
-    if (!connected) {
-      navigate("/");
+    if (!connected && currentRoomId) {
+      // Auto-connect if we have a roomId from URL
+      setRoomId(currentRoomId);
+      setCurrentUser(user?.name || 'Anonymous');
+      setConnected(true);
     }
-  }, [connected, roomId, currentUser]);
+  }, [currentRoomId, connected, user]);
 
   useEffect(() => {
     async function loadMessages() {
       try {
         setIsConnecting(true);
-        const messages = await getMessagess(roomId);
+        const messages = await getMessagess(currentRoomId);
         setMessages(messages);
         setIsConnecting(false);
       } catch (error) {
@@ -48,10 +58,10 @@ const ChatPage = () => {
         console.error("Error loading messages:", error);
       }
     }
-    if (connected) {
+    if (connected && currentRoomId) {
       loadMessages();
     }
-  }, [roomId, connected]);
+  }, [currentRoomId, connected]);
 
   useEffect(() => {
     if (chatBoxRef.current) {
@@ -72,7 +82,7 @@ const ChatPage = () => {
         setStompClient(client);
         toast.success("Connected to chat!");
 
-        client.subscribe(`/topic/room/${roomId}`, (message) => {
+        client.subscribe(`/topic/room/${currentRoomId}`, (message) => {
           console.log("Received message:", message);
           const newMessage = JSON.parse(message.body);
           const messageId = `${newMessage.sender}-${newMessage.timeStamp || newMessage.timestamp || Date.now()}`;
@@ -95,7 +105,7 @@ const ChatPage = () => {
       });
     };
 
-    if (connected && roomId) {
+    if (connected && currentRoomId) {
       connectWebSocket();
     }
 
@@ -104,20 +114,20 @@ const ChatPage = () => {
         stompClient.disconnect();
       }
     };
-  }, [roomId, connected]);
+  }, [currentRoomId, connected]);
 
   const sendMessage = async () => {
     if (stompClient && connected && input.trim()) {
       console.log("Sending message:", input);
 
       const message = {
-        sender: currentUser,
+        sender: currentUser || user?.name || 'Anonymous',
         content: input.trim(),
-        roomId: roomId,
+        roomId: currentRoomId,
       };
 
       stompClient.send(
-        `/app/sendMessage/${roomId}`,
+        `/app/sendMessage/${currentRoomId}`,
         {},
         JSON.stringify(message)
       );
@@ -132,11 +142,11 @@ const ChatPage = () => {
     setConnected(false);
     setRoomId("");
     setCurrentUser("");
-    navigate("/");
+    navigate("/chat");
   }
 
   const MessageBubble = ({ message, index, isNewMessage }) => {
-    const isOwnMessage = message.sender === currentUser;
+    const isOwnMessage = message.sender === (currentUser || user?.name);
     
     return (
       <div
@@ -175,8 +185,8 @@ const ChatPage = () => {
             {isOwnMessage && (
               <img
                 className="h-8 w-8 rounded-full ring-2 ring-blue-200 transition-transform duration-300 group-hover:scale-110"
-                src={`https://avatar.iran.liara.run/public/${currentUser.length * 3}`}
-                alt={currentUser}
+                src={`https://avatar.iran.liara.run/public/${(currentUser || user?.name || 'Anonymous').length * 3}`}
+                alt={currentUser || user?.name || 'Anonymous'}
               />
             )}
           </div>
@@ -195,195 +205,147 @@ const ChatPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-500">
-      {/* Animated Header */}
-      <header className="fixed top-0 w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 z-50 transition-all duration-300">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Room Info */}
-            <div className="flex items-center space-x-4 animate-slideInLeft">
-              <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-full">
-                <MdRoom className="w-5 h-5" />
-                <span className="font-semibold text-sm">{roomId}</span>
-              </div>
-              <div className="hidden sm:flex items-center space-x-2 bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-full">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {messages.length} messages
-                </span>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-500 flex flex-col">
+      {/* Navigation */}
+      <Navigation />
+      
+      {/* Chat Header */}
+      <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 z-40 transition-all duration-300">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <MdRoom className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Room: {currentRoomId}
+                  </h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {connected ? 'Connected' : 'Connecting...'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* User Info */}
-            <div className="flex items-center space-x-4 animate-slideInRight">
-              <div className="flex items-center space-x-3 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-full">
-                <MdPerson className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                <span className="font-semibold text-sm text-gray-800 dark:text-gray-200">
-                  {currentUser}
-                </span>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full">
+                  <MdPerson className="h-4 w-4 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="hidden md:block">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {currentUser || user?.name || 'Anonymous'}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {connected ? 'Online' : 'Offline'}
+                  </p>
+                </div>
               </div>
+
               <button
                 onClick={handleLogout}
-                className="group flex items-center space-x-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full transition-all duration-300 transform hover:scale-105 active:scale-95"
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                title="Leave Room"
               >
-                <MdLogout className="w-4 h-4 transition-transform duration-300 group-hover:rotate-12" />
-                <span className="text-sm font-medium">Leave</span>
+                <MdLogout className="h-5 w-5" />
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Chat Messages */}
-      <main
-        ref={chatBoxRef}
-        className="pt-24 pb-24 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto h-screen overflow-y-auto"
-        style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#CBD5E0 transparent'
-        }}
-      >
-        {isConnecting && (
-          <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            <span className="ml-3 text-gray-600 dark:text-gray-400">Loading messages...</span>
-          </div>
-        )}
-        
-        {messages.map((message, index) => {
-          const messageId = `${message.sender}-${message.timeStamp || message.timestamp || Date.now()}-${index}`;
-          const isNewMessage = newMessageIds.has(messageId);
-          
-          return (
-            <MessageBubble 
-              key={messageId} 
-              message={message} 
-              index={index} 
-              isNewMessage={isNewMessage}
-            />
-          );
-        })}
-        
-        {/* Remove typing indicator since we're using real WebSocket data */}
-      </main>
-
-      {/* Enhanced Input Container */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50 p-4 transition-all duration-300">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center space-x-3 bg-gray-100 dark:bg-gray-800 rounded-2xl p-2 shadow-lg">
-            <div className="flex-1 relative">
-              <input
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                type="text"
-                placeholder="Type your message..."
-                className="w-full bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 px-4 py-3 rounded-xl focus:outline-none text-sm resize-none"
-                style={{ minHeight: '44px' }}
-              />
-              {input.length > 0 && (
-                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400">
-                  {input.length}/1000
-                </div>
-              )}
+      {/* Chat Container */}
+      <div className="flex-1 flex flex-col">
+        {/* Messages Area */}
+        <div
+          ref={chatBoxRef}
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+          style={{ scrollbarWidth: 'thin', scrollbarColor: '#CBD5E0 #EDF2F7' }}
+        >
+          {isConnecting ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-3 text-gray-600 dark:text-gray-400">Loading messages...</span>
             </div>
-            
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
-              >
-                😊
-              </button>
-              
-              <button className="p-2 text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-all duration-200 transform hover:scale-110">
-                <MdAttachFile size={20} />
-              </button>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 text-center">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                <MdRoom className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                Welcome to the chat!
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400">
+                Start the conversation by sending a message.
+              </p>
+            </div>
+          ) : (
+            messages.map((message, index) => {
+              const messageId = `${message.sender}-${message.timeStamp || message.timestamp || index}`;
+              const isNewMessage = newMessageIds.has(messageId);
+              return (
+                <MessageBubble
+                  key={messageId}
+                  message={message}
+                  index={index}
+                  isNewMessage={isNewMessage}
+                />
+              );
+            })
+          )}
+        </div>
+
+        {/* Input Area */}
+        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50 p-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center space-x-4">
+              <div className="flex-1 relative">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  placeholder="Type your message..."
+                  className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
+                  disabled={!connected}
+                />
+              </div>
               
               <button
                 onClick={sendMessage}
-                disabled={!input.trim()}
-                className={`p-2 rounded-full transition-all duration-300 transform hover:scale-110 active:scale-95 ${
-                  input.trim()
-                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg hover:shadow-xl"
-                    : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                }`}
+                disabled={!input.trim() || !connected}
+                className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center shadow-lg hover:shadow-xl"
               >
-                <MdSend size={20} />
+                <MdSend className="w-5 h-5" />
               </button>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Custom CSS for animations */}
       <style jsx>{`
         @keyframes fadeInUp {
           from {
             opacity: 0;
-            transform: translateY(30px) scale(0.9);
+            transform: translateY(20px);
           }
           to {
             opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-        
-        @keyframes slideInLeft {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        
-        @keyframes slideInRight {
-          from {
-            opacity: 0;
-            transform: translateX(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
+            transform: translateY(0);
           }
         }
         
         .animate-fadeInUp {
-          animation: fadeInUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-        
-        .animate-slideInLeft {
-          animation: slideInLeft 0.5s ease-out;
-        }
-        
-        .animate-slideInRight {
-          animation: slideInRight 0.5s ease-out;
-        }
-        
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-          width: 6px;
-        }
-        
-        ::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-          background: #CBD5E0;
-          border-radius: 3px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-          background: #A0AEC0;
+          animation: fadeInUp 0.6s ease-out forwards;
         }
       `}</style>
     </div>

@@ -5,19 +5,20 @@ import toast from "react-hot-toast";
 import { createRoomApi, getAllRoomsApi, joinChatApi } from "../services/RoomService";
 import useChatContext from "../context/ChatContext";
 import { useNavigate } from "react-router";
+import { useAuth } from "../context/AuthContext";
+import Navigation from "./Navigation";
 
 const JoinCreateChat = () => {
+  const { user } = useAuth();
   const [detail, setDetail] = useState({
     roomId: "",
-    userName: "",
+    userName: user?.name || "",
   });
 
   const [rooms, setRooms] = useState([]);
   const [showSidebar, setShowSidebar] = useState(false);
   const [loadingRooms, setLoadingRooms] = useState(false);
-  const [showModal, setShowModal] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState("");
-  const [modalUserName, setModalUserName] = useState("");
   const [isJoining, setIsJoining] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [focusedInput, setFocusedInput] = useState("");
@@ -25,6 +26,12 @@ const JoinCreateChat = () => {
   const { roomId, userName, setRoomId, setCurrentUser, setConnected } =
     useChatContext();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.name) {
+      setDetail(prev => ({ ...prev, userName: user.name }));
+    }
+  }, [user]);
 
   function handleFormInputChange(event) {
     setDetail({
@@ -62,7 +69,7 @@ const JoinCreateChat = () => {
       setCurrentUser(detail.userName);
       setRoomId(room.roomId);
       setConnected(true);
-      navigate("/chat");
+      navigate(`/chat/${room.roomId}`);
     } catch (error) {
       if (error.status == 400) {
         toast.error(error.response.data);
@@ -77,27 +84,32 @@ const JoinCreateChat = () => {
 
   function handleJoinRoomClick(roomId) {
     setSelectedRoomId(roomId);
-    setShowModal(true);
+    if (window.innerWidth < 1024) setShowSidebar(false);
+    joinRoomFromModal(roomId);
   }
+  
 
-  async function joinRoomFromModal() {
-    if (!modalUserName.trim()) {
-      toast.error("Please enter your name");
+  async function joinRoomFromModal(roomIdToJoin) {
+    const roomToJoin = roomIdToJoin || selectedRoomId;
+    if (!roomToJoin) {
+      toast.error("No Room ID found");
       return;
     }
-
+  
+    if (!user?.name?.trim()) {
+      toast.error("User not logged in");
+      return;
+    }
     setIsJoining(true);
-    
     try {
-      const room = await joinChatApi(selectedRoomId);
+      const room = await joinChatApi(roomToJoin);
       toast.success("Joined successfully!");
-      setCurrentUser(modalUserName);
+      setCurrentUser(user.name);
       setRoomId(room.roomId);
       setConnected(true);
-      setShowModal(false);
-      navigate("/chat");
+      navigate(`/chat/${room.roomId}`);
     } catch (error) {
-      if (error.status == 400) {
+      if (error.status === 400) {
         toast.error(error.response.data);
       } else {
         toast.error("Error in joining room");
@@ -107,20 +119,15 @@ const JoinCreateChat = () => {
       setIsJoining(false);
     }
   }
-
-  function closeModal() {
-    setShowModal(false);
-    setModalUserName("");
-    setSelectedRoomId("");
-  }
-
   async function getRooms() {
     setLoadingRooms(true);
     try {
       const fetchedRooms = await getAllRoomsApi();
+      console.log(fetchedRooms);
       setRooms(fetchedRooms);
       setShowSidebar(true);
     } catch (error) {
+      console.log(error);
       if (error.status == 400) {
         toast.error(error.response.data);
       } else {
@@ -144,7 +151,7 @@ const JoinCreateChat = () => {
         setCurrentUser(detail.userName);
         setRoomId(response.roomId);
         setConnected(true);
-        navigate("/chat");
+        navigate(`/chat/${response.roomId}`);
       } catch (error) {
         console.log(error);
         if (error.status == 400) {
@@ -164,320 +171,170 @@ const JoinCreateChat = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 dark:bg-purple-900 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-300 dark:bg-blue-900 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 h-60 bg-pink-300 dark:bg-pink-900 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse delay-500"></div>
-      </div>
-
-      {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-r border-gray-200/50 dark:border-gray-700/50 transition-all duration-500 ease-out z-50 ${
-        showSidebar ? 'translate-x-0 shadow-2xl' : '-translate-x-full shadow-none'
-      } w-80 lg:relative lg:translate-x-0 lg:shadow-xl`}>
-        <div className="p-6 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/20 rounded-xl">
-                <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex flex-col">
+      {/* Navigation */}
+      <Navigation />
+      
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar */}
+        <div className={`fixed left-0 top-16 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-r border-gray-200/50 dark:border-gray-700/50 transition-all duration-500 ease-out z-50 ${
+          showSidebar ? 'translate-x-0 shadow-2xl' : '-translate-x-full shadow-none'
+        } w-80 lg:relative lg:translate-x-0 lg:shadow-xl lg:top-0`}>
+          <div className="p-6 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/20 rounded-xl">
+                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h2 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Available Rooms
+                </h2>
               </div>
-              <h2 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Available Rooms
-              </h2>
+              <button
+                onClick={() => setShowSidebar(false)}
+                className="lg:hidden p-2 rounded-xl hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-all duration-200 group"
+              >
+                <X className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
+              </button>
             </div>
             <button
-              onClick={() => setShowSidebar(false)}
-              className="lg:hidden p-2 rounded-xl hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-all duration-200 group"
+              onClick={getRooms}
+              disabled={loadingRooms}
+              className="mt-4 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl disabled:opacity-50 transition-all duration-200 transform hover:scale-105 flex items-center gap-2 shadow-lg hover:shadow-xl"
             >
-              <X className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
+              <RefreshCw className={`w-4 h-4 ${loadingRooms ? 'animate-spin' : ''}`} />
+              {loadingRooms ? 'Loading...' : 'Refresh Rooms'}
             </button>
           </div>
-          <button
-            onClick={getRooms}
-            disabled={loadingRooms}
-            className="mt-4 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl disabled:opacity-50 transition-all duration-200 transform hover:scale-105 flex items-center gap-2 shadow-lg hover:shadow-xl"
-          >
-            <RefreshCw className={`w-4 h-4 ${loadingRooms ? 'animate-spin' : ''}`} />
-            {loadingRooms ? "Loading..." : "Refresh"}
-          </button>
-        </div>
-        
-        <div className="p-4 overflow-y-auto">
-          {rooms.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                <MessageCircle className="w-8 h-8 text-gray-400" />
+
+          <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
+            {rooms.length === 0 ? (
+              <div className="text-center py-8">
+                <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 dark:text-gray-400">No rooms available</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">Create a room to get started</p>
               </div>
-              <p className="text-gray-500 text-center">No rooms available</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {rooms.map((room, index) => (
+            ) : (
+              rooms.map((room) => (
                 <div
-                  key={room.roomId || index}
-                  className="group p-4 border border-gray-200/50 dark:border-gray-600/50 rounded-2xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-gray-700/80 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl"
-                  style={{
-                    animationDelay: `${index * 100}ms`,
-                    animation: showSidebar ? 'slideInLeft 0.5s ease-out forwards' : 'none'
-                  }}
+                  key={room.roomId}
+                  className="p-4 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-gray-600/50 hover:bg-white/80 dark:hover:bg-gray-700/80 transition-all duration-200 cursor-pointer group"
+                  onClick={() => handleJoinRoomClick(room.roomId)}
                 >
-                  <div className="flex justify-between items-center">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
+                        <MessageCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </div>
                       <div>
-                        <h3 className="font-semibold text-gray-800 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
+                        <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                           {room.roomId}
                         </h3>
-                        {room.participantCount && (
-                          <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                            <Users className="w-3 h-3" />
-                            {room.participantCount} participants
-                          </p>
-                        )}
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {room.userCount || 0} users
+                        </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleJoinRoomClick(room.roomId)}
-                      className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-sm rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2 group-hover:animate-pulse"
-                    >
-                      Join
-                      <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform duration-200" />
-                    </button>
+                    <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all duration-200" />
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Join Room Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div 
-            className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl max-w-md w-full mx-4 border border-gray-200/50 dark:border-gray-700/50 transform transition-all duration-300"
-            style={{
-              animation: 'modalSlideIn 0.3s ease-out forwards'
-            }}
-          >
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                <MessageCircle className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-xl font-semibold mb-2">Join Room</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full inline-block">
-                {selectedRoomId}
-              </p>
-            </div>
-            
-            <div className="mb-6">
-              <label htmlFor="modalUserName" className="block font-medium mb-3 text-gray-700 dark:text-gray-300">
-                Enter your name
-              </label>
-              <input
-                type="text"
-                id="modalUserName"
-                value={modalUserName}
-                onChange={(e) => setModalUserName(e.target.value)}
-                placeholder="Your name"
-                className="w-full bg-white/50 dark:bg-gray-700/50 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 backdrop-blur-sm"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    joinRoomFromModal();
-                  }
-                }}
-                autoFocus
-              />
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={closeModal}
-                className="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-2xl transition-all duration-200 transform hover:scale-[1.02] font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={joinRoomFromModal}
-                disabled={isJoining}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-2xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:scale-100 font-medium flex items-center justify-center gap-2"
-              >
-                {isJoining ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Joining...
-                  </>
-                ) : (
-                  <>
-                    Join Room
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </div>
+              ))
+            )}
           </div>
         </div>
-      )}
 
-      {/* Overlay for mobile */}
-      {showSidebar && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
-          onClick={() => setShowSidebar(false)}
-        />
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center p-4 relative">
-        {/* Toggle button for mobile */}
-        <button
-          onClick={() => setShowSidebar(true)}
-          className="fixed top-6 left-6 lg:hidden z-30 p-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:scale-110"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-
-        <div className="p-8 border border-gray-200/50 dark:border-gray-700/50 w-full flex flex-col gap-6 max-w-md rounded-3xl bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl shadow-2xl transition-all duration-500 transform">
-          <div className="text-center">
-            <img src={chatIcon} className="w-20 h-20 mx-auto mb-4 transform hover:rotate-12 transition-transform duration-300 shadow-xl rounded-2xl" />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">
-              Join Room / Create Room
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mt-2">
-              Connect with friends instantly
-            </p>
-          </div>
-
-          {/* Name input */}
-          <div className="space-y-2">
-            <label htmlFor="name" className="block font-medium text-gray-700 dark:text-gray-300">
-              Your name
-            </label>
-            <div className="relative">
-              <input
-                onChange={handleFormInputChange}
-                value={detail.userName}
-                type="text"
-                id="name"
-                name="userName"
-                placeholder="Enter your name"
-                onFocus={() => setFocusedInput('name')}
-                onBlur={() => setFocusedInput('')}
-                className={`w-full bg-white/50 dark:bg-gray-800/50 px-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 backdrop-blur-sm ${
-                  focusedInput === 'name' ? 'border-blue-500 shadow-lg transform scale-[1.02]' : 'border-gray-200 dark:border-gray-600'
-                }`}
-              />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                  detail.userName ? 'bg-green-400' : 'bg-gray-300'
-                }`}></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Room ID input */}
-          <div className="space-y-2">
-            <label htmlFor="roomId" className="block font-medium text-gray-700 dark:text-gray-300">
-              Room ID / New Room ID
-            </label>
-            <div className="relative">
-              <input
-                name="roomId"
-                onChange={handleFormInputChange}
-                value={detail.roomId}
-                type="text"
-                id="roomId"
-                placeholder="Enter the room id"
-                onFocus={() => setFocusedInput('roomId')}
-                onBlur={() => setFocusedInput('')}
-                className={`w-full bg-white/50 dark:bg-gray-800/50 px-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 backdrop-blur-sm ${
-                  focusedInput === 'roomId' ? 'border-blue-500 shadow-lg transform scale-[1.02]' : 'border-gray-200 dark:border-gray-600'
-                }`}
-              />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                  detail.roomId ? 'bg-green-400' : 'bg-gray-300'
-                }`}></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Buttons */}
-          <div className="flex gap-3 mt-4">
-            <button
-              onClick={() => joinChat()}
-              disabled={isJoining}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-2xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:scale-100 font-medium flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
-            >
-              {isJoining ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Joining...
-                </>
-              ) : (
-                <>
-                  <MessageCircle className="w-4 h-4" />
-                  Join Room
-                </>
-              )}
-            </button>
-            <button
-              onClick={createRoom}
-              disabled={isCreating}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-2xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:scale-100 font-medium flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
-            >
-              {isCreating ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4" />
-                  Create Room
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Show available rooms button for mobile */}
-          <div className="text-center lg:hidden">
+        {/* Main Content */}
+        <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+          <div className="w-full max-w-md">
+            {/* Mobile Menu Button */}
             <button
               onClick={() => setShowSidebar(true)}
-              className="text-blue-500 hover:text-blue-600 text-sm font-medium flex items-center gap-2 mx-auto transition-all duration-200 hover:gap-3"
+              className="lg:hidden fixed top-20 left-4 z-50 p-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 hover:bg-white dark:hover:bg-gray-800 transition-all duration-200"
             >
-              <Users className="w-4 h-4" />
-              View Available Rooms
-              <ArrowRight className="w-3 h-3" />
+              <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
+
+            {/* Main Card */}
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 p-8">
+              <div className="text-center mb-8">
+                <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+                  <img src={chatIcon} alt="Chat" className="w-8 h-8" />
+                </div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                  Welcome to ChatApp
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Join existing rooms or create your own
+                </p>
+              </div>
+
+              {/* Form */}
+              <div className="space-y-6">
+                {/* <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Your Name
+                  </label>
+                  <input
+                    type="text"
+                    name="userName"
+                    value={detail.userName}
+                    onChange={handleFormInputChange}
+                    onFocus={() => setFocusedInput("userName")}
+                    onBlur={() => setFocusedInput("")}
+                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
+                      focusedInput === "userName"
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                        : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700"
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400`}
+                    placeholder="Enter your name"
+                    required
+                  />
+                </div> */}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Room ID
+                  </label>
+                  <input
+                    type="text"
+                    name="roomId"
+                    value={detail.roomId}
+                    onChange={handleFormInputChange}
+                    onFocus={() => setFocusedInput("roomId")}
+                    onBlur={() => setFocusedInput("")}
+                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
+                      focusedInput === "roomId"
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                        : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700"
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400`}
+                    placeholder="Enter room ID"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={createRoom}
+                    disabled={isCreating}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {isCreating ? 'Creating...' : 'Create Room'}
+                  </button>
+                  <button
+                    onClick={() => joinChat()}
+                    disabled={isJoining}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    {isJoining ? 'Joining...' : 'Join Room'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes slideInLeft {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-
-        @keyframes modalSlideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-20px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
     </div>
   );
 };
