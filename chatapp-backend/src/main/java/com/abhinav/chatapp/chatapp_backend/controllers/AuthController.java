@@ -19,7 +19,6 @@ import java.util.Random;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(AppConstants.FRONT_END_BASE_URL)
 public class AuthController {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
