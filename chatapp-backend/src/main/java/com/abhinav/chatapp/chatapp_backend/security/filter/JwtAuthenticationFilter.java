@@ -33,10 +33,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        System.out.println("Incoming request: " + path);
+        String method = request.getMethod();
+        System.out.println("Incoming request: " + method + " " + path);
 
-        if (path.startsWith("/api/auth")) {
-            System.out.println("Public path. Skipping JWT validation.");
+        if (isPublicPath(path)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -46,7 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
-            System.out.println("Extracted Token: " + token);
+            System.out.println("Extracted Token: " + token.substring(0, Math.min(20, token.length())) + "...");
             try {
                 Claims claims = jwtUtil.validateToken(token);
                 String email = claims.getSubject();
@@ -58,18 +58,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(user, null, List.of());
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    System.out.println("Authentication set in SecurityContext");
                 } else {
                     System.out.println("User not found in DB for email: " + email);
                 }
             } catch (Exception e) {
                 System.out.println("JWT validation failed: " + e.getMessage());
+                e.printStackTrace();
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT Token");
                 return;
             }
         } else {
-            System.out.println("No valid Authorization header found.");
+            System.out.println("No valid Authorization header found. Request will be rejected.");
         }
 
         filterChain.doFilter(request, response);
     }
+
+    private boolean isPublicPath(String path) {
+        return path.startsWith("/api/auth") ||
+                path.startsWith("/chat") ||
+                path.startsWith("/websocket") ||
+                path.startsWith("/topic") ||
+                path.startsWith("/app") ||
+                path.contains("/info") ||
+                path.contains("/iframe") ||
+                path.contains("/xhr") ||
+                path.contains("/xhr_send") ||
+                path.contains("/xhr_streaming") ||
+                path.contains("/eventsource") ||
+                path.contains("/jsonp");
+    }
+
 }

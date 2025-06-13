@@ -55,7 +55,7 @@ public class RoomController {
 
 
     //get room: join
-    @GetMapping("/{roomId}")
+    @PutMapping("/{roomId}")
     public ResponseEntity<?> joinRoom(
             @PathVariable String roomId
     ) {
