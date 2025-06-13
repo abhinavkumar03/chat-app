@@ -8,8 +8,13 @@ export const httpClient = axios.create({
 httpClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+    console.log('Axios interceptor - Token available:', !!token);
+    console.log('Request URL:', config.url);
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
+      console.log('Authorization header added');
+    } else {
+      console.log('No token found, request will be unauthorized');
     }
     return config;
   },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { User, Lock, Eye, EyeOff, Save, ToggleLeft, ToggleRight } from 'lucide-react';
@@ -14,6 +14,13 @@ const Profile = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Update form data if user changes (e.g., after a simulated update)
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({ ...prev, name: user.name }));
+    }
+  }, [user]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -82,7 +89,7 @@ const Profile = () => {
       });
 
       if (result.success) {
-        toast.success(`Account ${user.isActive ? 'deactivated' : 'activated'} successfully!`);
+        toast.success(`Account ${user.isActive ? 'activated' : 'deactivated'} successfully!`);
         if (!user.isActive) {
           // If account is deactivated, log out
           logout();
@@ -111,14 +118,25 @@ const Profile = () => {
     }
   };
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-gray-400">
+        <div className="flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-400"></div>
+          <span>Loading user profile...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-gray-800 p-10 rounded-lg shadow-xl border border-gray-700">
           {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900">Profile Settings</h2>
-            <p className="mt-1 text-sm text-gray-600">
+          <div className="px-6 py-4 border-b border-gray-700">
+            <h2 className="text-2xl font-bold text-white">Profile Settings</h2>
+            <p className="mt-1 text-sm text-gray-400">
               Update your account information and preferences
             </p>
           </div>
@@ -126,27 +144,27 @@ const Profile = () => {
           <div className="px-6 py-6">
             {/* Account Status */}
             <div className="mb-8">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Account Status</h3>
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-lg font-medium text-white mb-4">Account Status</h3>
+              <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg border border-gray-600">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Account Status</p>
-                  <p className="text-sm text-gray-600">
-                    {user?.isActive ? 'Your account is active' : 'Your account is deactivated'}
+                  <p className="text-sm font-medium text-white">Account Status</p>
+                  <p className="text-sm text-gray-400">
+                    {user?.isActive ? 'Your account is deactivated' : 'Your account is active'}
                   </p>
                 </div>
-                <button
+                <button disabled
                   onClick={handleStatusToggle}
-                  className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                  className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                 >
                   {user?.isActive ? (
                     <>
                       <ToggleLeft className="h-4 w-4" />
-                      <span>Deactivate</span>
+                      <span>Activate</span>
                     </>
                   ) : (
                     <>
                       <ToggleRight className="h-4 w-4" />
-                      <span>Activate</span>
+                      <span>Deactivate</span>
                     </>
                   )}
                 </button>
@@ -155,45 +173,48 @@ const Profile = () => {
 
             {/* Profile Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Personal Information</h3>
+              <h3 className="text-lg font-medium text-white">Personal Information</h3>
               
               {/* Name Field */}
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-300">
                   Full Name
                 </label>
                 <div className="mt-1 relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
+                    <User className="h-5 w-5 text-gray-500" />
                   </div>
                   <input
                     id="name"
                     name="name"
                     type="text"
                     required
-                    className={`appearance-none relative block w-full px-3 py-2 pl-10 border ${
-                      errors.name ? 'border-red-300' : 'border-gray-300'
-                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                    className={`appearance-none relative block w-full px-3 py-3 pl-10 border ${
+                      errors.name ? 'border-red-500' : 'border-gray-600'
+                    } bg-gray-700 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
                     placeholder="Enter your full name"
                     value={formData.name}
                     onChange={handleChange}
                   />
                 </div>
                 {errors.name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                  <p className="mt-1 text-sm text-red-400 flex items-center">
+                    <span className="w-1 h-1 bg-red-400 rounded-full mr-2"></span>
+                    {errors.name}
+                  </p>
                 )}
               </div>
 
               {/* Email Display (Read-only) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-300">
                   Email Address
                 </label>
                 <div className="mt-1 relative">
                   <input
                     type="email"
                     disabled
-                    className="appearance-none relative block w-full px-3 py-2 border border-gray-300 bg-gray-50 text-gray-500 rounded-md sm:text-sm"
+                    className="appearance-none relative block w-full px-3 py-3 border border-gray-600 bg-gray-700 text-gray-400 rounded-md sm:text-sm cursor-not-allowed"
                     value={user?.email || ''}
                   />
                 </div>
@@ -204,24 +225,24 @@ const Profile = () => {
 
               {/* Password Fields */}
               <div className="space-y-4">
-                <h4 className="text-md font-medium text-gray-900">Change Password (Optional)</h4>
+                <h4 className="text-md font-medium text-white">Change Password (Optional)</h4>
                 
                 {/* New Password */}
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-300">
                     New Password
                   </label>
                   <div className="mt-1 relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-gray-400" />
+                      <Lock className="h-5 w-5 text-gray-500" />
                     </div>
                     <input
                       id="password"
                       name="password"
                       type={showPassword ? 'text' : 'password'}
-                      className={`appearance-none relative block w-full px-3 py-2 pl-10 pr-10 border ${
-                        errors.password ? 'border-red-300' : 'border-gray-300'
-                      } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                      className={`appearance-none relative block w-full px-3 py-3 pl-10 pr-12 border ${
+                        errors.password ? 'border-red-500' : 'border-gray-600'
+                      } bg-gray-700 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
                       placeholder="Enter new password (leave blank to keep current)"
                       value={formData.password}
                       onChange={handleChange}
@@ -232,34 +253,41 @@ const Profile = () => {
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
-                        <EyeOff className="h-5 w-5 text-gray-400" />
+                        <EyeOff className="h-5 w-5 text-gray-500 hover:text-gray-400" />
                       ) : (
-                        <Eye className="h-5 w-5 text-gray-400" />
+                        <Eye className="h-5 w-5 text-gray-500 hover:text-gray-400" />
                       )}
                     </button>
                   </div>
                   {errors.password && (
-                    <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                    <p className="mt-1 text-sm text-red-400 flex items-center">
+                      <span className="w-1 h-1 bg-red-400 rounded-full mr-2"></span>
+                      {errors.password}
+                    </p>
                   )}
                 </div>
 
                 {/* Confirm Password */}
                 {formData.password && (
                   <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
                       Confirm New Password
                     </label>
                     <div className="mt-1 relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-5 w-5 text-gray-400" />
+                        <Lock className="h-5 w-5 text-gray-500" />
                       </div>
                       <input
                         id="confirmPassword"
                         name="confirmPassword"
                         type={showConfirmPassword ? 'text' : 'password'}
-                        className={`appearance-none relative block w-full px-3 py-2 pl-10 pr-10 border ${
-                          errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-                        } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                        className={`appearance-none relative block w-full px-3 py-3 pl-10 pr-12 border ${
+                          errors.confirmPassword 
+                            ? 'border-red-500' 
+                            : formData.confirmPassword && formData.password === formData.confirmPassword
+                            ? 'border-green-500'
+                            : 'border-gray-600'
+                        } bg-gray-700 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
                         placeholder="Confirm new password"
                         value={formData.confirmPassword}
                         onChange={handleChange}
@@ -270,14 +298,17 @@ const Profile = () => {
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       >
                         {showConfirmPassword ? (
-                          <EyeOff className="h-5 w-5 text-gray-400" />
+                          <EyeOff className="h-5 w-5 text-gray-500 hover:text-gray-400" />
                         ) : (
-                          <Eye className="h-5 w-5 text-gray-400" />
+                          <Eye className="h-5 w-5 text-gray-500 hover:text-gray-400" />
                         )}
                       </button>
                     </div>
                     {errors.confirmPassword && (
-                      <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                      <p className="mt-1 text-sm text-red-400 flex items-center">
+                        <span className="w-1 h-1 bg-red-400 rounded-full mr-2"></span>
+                        {errors.confirmPassword}
+                      </p>
                     )}
                   </div>
                 )}
@@ -288,7 +319,7 @@ const Profile = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center px-4 py-3 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                 >
                   {loading ? (
                     <div className="flex items-center">
@@ -311,4 +342,4 @@ const Profile = () => {
   );
 };
 
-export default Profile; 
+export default Profile;

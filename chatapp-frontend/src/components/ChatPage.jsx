@@ -11,6 +11,8 @@ import { timeAgo } from "../config/helper";
 import { useAuth } from "../context/AuthContext";
 import Navigation from "./Navigation";
 
+import { LogOut, User, Settings, MessageSquare, Send, Slash, ChevronsRight, Info, Zap } from 'lucide-react';
+
 const ChatPage = () => {
   const { roomId: urlRoomId } = useParams();
   const { user } = useAuth();
@@ -74,11 +76,13 @@ const ChatPage = () => {
 
   // WebSocket connection setup
   useEffect(() => {
-    const connectWebSocket = () => {
+    if (connected && currentRoomId && !stompClient) {
+      console.log("Attempting WebSocket connection to:", `${baseURL}/chat`);
       const sock = new SockJS(`${baseURL}/chat`);
       const client = Stomp.over(sock);
 
       client.connect({}, () => {
+        console.log("WebSocket connected successfully");
         setStompClient(client);
         toast.success("Connected to chat!");
 
@@ -102,24 +106,25 @@ const ChatPage = () => {
       }, (error) => {
         console.error("WebSocket connection error:", error);
         toast.error("Failed to connect to chat");
+        setStompClient(null);
       });
-    };
-
-    if (connected && currentRoomId) {
-      connectWebSocket();
     }
 
     return () => {
       if (stompClient) {
-        stompClient.disconnect();
+        console.log("Disconnecting WebSocket");
+        stompClient.disconnect(() => {
+          console.log("WebSocket disconnected");
+        });
+        setStompClient(null);
       }
     };
   }, [currentRoomId, connected]);
 
-  const sendMessage = async () => {
-    if (stompClient && connected && input.trim()) {
-      console.log("Sending message:", input);
 
+
+  const sendMessage = () => {
+    if (stompClient?.connected && input.trim()) {
       const message = {
         sender: currentUser || user?.name || 'Anonymous',
         content: input.trim(),
@@ -131,9 +136,14 @@ const ChatPage = () => {
         {},
         JSON.stringify(message)
       );
+
       setInput("");
+    } else {
+      toast.error("Message cannot be sent. Not connected or input is empty.");
     }
   };
+
+
 
   function handleLogout() {
     if (stompClient) {
@@ -155,36 +165,36 @@ const ChatPage = () => {
         }`}
       >
         <div
-          className={`group max-w-xs lg:max-w-md px-4 py-3 rounded-2xl relative transform transition-all duration-300 hover:scale-105 ${
+          className={`group max-w-xs lg:max-w-md px-4 py-3 rounded-xl relative transform transition-all duration-300 hover:scale-105 ${
             isOwnMessage
-              ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-br-md"
-              : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md shadow-lg"
+              ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-br-lg"
+              : "bg-gray-700 text-white rounded-bl-lg shadow-lg"
           }`}
         >
           <div className="flex items-start space-x-3">
             {!isOwnMessage && (
               <img
-                className="h-8 w-8 rounded-full ring-2 ring-gray-200 dark:ring-gray-700 transition-transform duration-300 group-hover:scale-110"
+                className="h-8 w-8 rounded-full ring-2 ring-gray-600 dark:ring-gray-700 transition-transform duration-300 group-hover:scale-110"
                 src={`https://avatar.iran.liara.run/public/${message.sender.length * 3}`}
                 alt={message.sender}
               />
             )}
             <div className="flex-1">
               {!isOwnMessage && (
-                <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                <p className="text-xs font-semibold text-gray-300 mb-1">
                   {message.sender}
                 </p>
               )}
               <p className="text-sm leading-relaxed">{message.content}</p>
               <p className={`text-xs mt-2 ${
-                isOwnMessage ? "text-blue-100" : "text-gray-500 dark:text-gray-400"
+                isOwnMessage ? "text-blue-200" : "text-gray-400"
               }`}>
                 {timeAgo(message.timeStamp || message.timestamp)}
               </p>
             </div>
             {isOwnMessage && (
               <img
-                className="h-8 w-8 rounded-full ring-2 ring-blue-200 transition-transform duration-300 group-hover:scale-110"
+                className="h-8 w-8 rounded-full ring-2 ring-blue-400 transition-transform duration-300 group-hover:scale-110"
                 src={`https://avatar.iran.liara.run/public/${(currentUser || user?.name || 'Anonymous').length * 3}`}
                 alt={currentUser || user?.name || 'Anonymous'}
               />
@@ -196,7 +206,7 @@ const ChatPage = () => {
             className={`absolute top-4 w-0 h-0 ${
               isOwnMessage
                 ? "right-0 border-l-8 border-l-purple-600 border-t-4 border-t-transparent border-b-4 border-b-transparent"
-                : "left-0 border-r-8 border-r-white dark:border-r-gray-800 border-t-4 border-t-transparent border-b-4 border-b-transparent"
+                : "left-0 border-r-8 border-r-gray-700 border-t-4 border-t-transparent border-b-4 border-b-transparent"
             }`}
           />
         </div>
@@ -205,24 +215,26 @@ const ChatPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-500 flex flex-col">
-      {/* Navigation */}
+    <div className="min-h-screen bg-gray-900 flex flex-col font-sans">
       <Navigation />
-      
       {/* Chat Header */}
-      <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 z-40 transition-all duration-300">
+      <header className="bg-gray-800/80 backdrop-blur-xl border-b border-gray-700/50 z-40 transition-all duration-300">
+      <p className="text-sm text-gray-400">
+        {stompClient?.connected ? 'Connected' : 'Connecting...'}
+      </p>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <MdRoom className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className="p-2 bg-indigo-900/30 rounded-lg">
+                  <MessageSquare className="w-5 h-5 text-indigo-400" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <h1 className="text-lg font-semibold text-white">
                     Room: {currentRoomId}
                   </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-gray-400">
                     {connected ? 'Connected' : 'Connecting...'}
                   </p>
                 </div>
@@ -231,14 +243,14 @@ const ChatPage = () => {
 
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
-                <div className="flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full">
-                  <MdPerson className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <div className="flex items-center justify-center w-8 h-8 bg-green-900/30 rounded-full">
+                  <User className="h-4 w-4 text-green-400" />
                 </div>
                 <div className="hidden md:block">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  <p className="text-sm font-medium text-white">
                     {currentUser || user?.name || 'Anonymous'}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-400">
                     {connected ? 'Online' : 'Offline'}
                   </p>
                 </div>
@@ -246,10 +258,10 @@ const ChatPage = () => {
 
               <button
                 onClick={handleLogout}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-gray-800"
                 title="Leave Room"
               >
-                <MdLogout className="h-5 w-5" />
+                <LogOut className="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -261,23 +273,22 @@ const ChatPage = () => {
         {/* Messages Area */}
         <div
           ref={chatBoxRef}
-          className="flex-1 overflow-y-auto p-4 space-y-4"
-          style={{ scrollbarWidth: 'thin', scrollbarColor: '#CBD5E0 #EDF2F7' }}
+          className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"
         >
           {isConnecting ? (
             <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-3 text-gray-600 dark:text-gray-400">Loading messages...</span>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400"></div>
+              <span className="ml-3 text-gray-400">Loading messages...</span>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
-                <MdRoom className="w-8 h-8 text-gray-400" />
+              <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                <MessageSquare className="w-8 h-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              <h3 className="text-lg font-medium text-white mb-2">
                 Welcome to the chat!
               </h3>
-              <p className="text-gray-500 dark:text-gray-400">
+              <p className="text-gray-400">
                 Start the conversation by sending a message.
               </p>
             </div>
@@ -298,7 +309,7 @@ const ChatPage = () => {
         </div>
 
         {/* Input Area */}
-        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50 p-4">
+        <div className="bg-gray-900/80 backdrop-blur-xl border-t border-gray-700/50 p-4">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center space-x-4">
               <div className="flex-1 relative">
@@ -314,7 +325,7 @@ const ChatPage = () => {
                     }
                   }}
                   placeholder="Type your message..."
-                  className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-white placeholder-gray-500 transition-all duration-200"
                   disabled={!connected}
                 />
               </div>
@@ -322,17 +333,16 @@ const ChatPage = () => {
               <button
                 onClick={sendMessage}
                 disabled={!input.trim() || !connected}
-                className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center shadow-lg hover:shadow-xl"
+                className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-md transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-900" // Updated colors, rounded-md, focus styles
               >
-                <MdSend className="w-5 h-5" />
+                <Send className="w-5 h-5" />
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Custom CSS for animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes fadeInUp {
           from {
             opacity: 0;
@@ -346,6 +356,25 @@ const ChatPage = () => {
         
         .animate-fadeInUp {
           animation: fadeInUp 0.6s ease-out forwards;
+        }
+
+        /* Custom scrollbar for dark theme */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #2d3748; /* gray-800 */
+          border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #4a5568; /* gray-600 */
+          border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #6b7280; /* gray-500 */
         }
       `}</style>
     </div>

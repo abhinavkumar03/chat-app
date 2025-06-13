@@ -13,13 +13,19 @@ const authApi = axios.create({
 });
 
 // Add token to requests if available
-authApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+authApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Token is invalid or expired
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login'; // or show a modal/toast if you prefer
+    }
+    return Promise.reject(error);
   }
-  return config;
-});
+);
+
 
 // Handle response errors
 authApi.interceptors.response.use(
