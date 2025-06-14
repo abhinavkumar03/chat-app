@@ -4,6 +4,8 @@ import com.abhinav.chatapp.chatapp_backend.entities.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -13,9 +15,25 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    // Use a 256-bit (32-byte) secret key for HS256
-    private static final String SECRET_STRING = "mysecurekeymysecurekeymysecurekey12";
-    private static final SecretKey SECRET_KEY = Keys.hmacShaKeyFor(SECRET_STRING.getBytes(StandardCharsets.UTF_8));
+    @Value("${jwt.secret}")
+    public String secretString;
+    private SecretKey secretKey;
+
+    @PostConstruct
+    public void init(){
+        this.secretKey = Keys.hmacShaKeyFor(secretString.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public String generateTokenWithExpiry(User user) {
+        return Jwts.builder()
+                .subject(user.getEmail())
+                .claim("userId", user.getId())
+                .claim("role", user.getRole())
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 86400000)) // 1 day
+                .signWith(secretKey)
+                .compact();
+    }
 
     public String generateToken(User user) {
         return Jwts.builder()
@@ -23,14 +41,13 @@ public class JwtUtil {
                 .claim("userId", user.getId())
                 .claim("role", user.getRole())
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 86400000)) // 1 day
-                .signWith(SECRET_KEY)
+                .signWith(secretKey)
                 .compact();
     }
 
     public Claims validateToken(String token) {
         return Jwts.parser()
-                .verifyWith(SECRET_KEY)
+                .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
