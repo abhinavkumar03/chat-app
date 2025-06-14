@@ -1,8 +1,8 @@
 import axios from 'axios';
-import { httpClient } from '../config/AxiosHelper';
+import { baseURL, httpClient } from '../config/AxiosHelper';
 
-// const API_BASE_URL = 'http://localhost:8080/api/auth';
-const API_BASE_URL = 'https://chat-backend-p6dq.onrender.com/api/auth';
+const API_BASE_URL = `${baseURL}/api/auth`;
+
 
 // Create axios instance with base configuration
 const authApi = axios.create({

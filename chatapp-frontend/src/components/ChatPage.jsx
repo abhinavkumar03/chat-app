@@ -78,7 +78,8 @@ const ChatPage = () => {
   useEffect(() => {
     if (connected && currentRoomId && !stompClient) {
       console.log("Attempting WebSocket connection to:", `${baseURL}/chat`);
-      const sock = new SockJS(`${baseURL}/chat`);
+      const token = localStorage.getItem("token");
+      const sock = new SockJS(`${baseURL}/chat?token=${token}`);
       const client = Stomp.over(sock);
 
       client.connect({}, () => {
@@ -219,9 +220,6 @@ const ChatPage = () => {
       <Navigation />
       {/* Chat Header */}
       <header className="bg-gray-800/80 backdrop-blur-xl border-b border-gray-700/50 z-40 transition-all duration-300">
-      <p className="text-sm text-gray-400">
-        {stompClient?.connected ? 'Connected' : 'Connecting...'}
-      </p>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -269,7 +267,7 @@ const ChatPage = () => {
       </header>
 
       {/* Chat Container */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col sm:px-6 lg:px-8">
         {/* Messages Area */}
         <div
           ref={chatBoxRef}
