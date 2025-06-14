@@ -25,11 +25,22 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (credentials) => {
-    const result = await authService.login(credentials);
-    if (result.success) {
-      setUser(result.data);
+    try {
+      const result = await authService.login(credentials);
+      if (result.success) {
+        // Extract user data from the response, excluding the token
+        const { token, ...userData } = result.data.data;
+        setUser(userData);
+        console.log('Login successful, user data:', userData);
+        console.log('Token stored:', !!localStorage.getItem('token'));
+      } else {
+        console.error('Login failed:', result.error);
+      }
+      return result;
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, error: error.message };
     }
-    return result;
   };
 
   const signup = async (userData) => {

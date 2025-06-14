@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 
 const ForgotPassword = () => {
   const { resetPassword, sendOtp, verifyOtp } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1: email, 2: otp, 3: new password
   const [formData, setFormData] = useState({
     email: '',
@@ -131,7 +132,7 @@ const ForgotPassword = () => {
           newPassword: '',
           confirmPassword: ''
         });
-        setStep(1);
+        navigate("/login");
       } else {
         toast.error(result.error);
       }
@@ -164,24 +165,28 @@ const ForgotPassword = () => {
     }
   };
 
+  const handleBackToLogin = () => {
+    navigate("/login");
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-gray-800 p-10 rounded-lg shadow-xl border border-gray-700">
         <div>
           <div className="flex items-center mb-6">
-            <Link
-              to="/login"
-              className="flex items-center text-indigo-600 hover:text-indigo-500 mr-4"
+            <button
+              onClick={handleBackToLogin}
+              className="flex items-center text-indigo-400 hover:text-indigo-300 mr-4 cursor-pointer"
             >
               <ArrowLeft className="h-5 w-5 mr-1" />
               Back to Login
-            </Link>
+            </button>
           </div>
           
-          <h2 className="text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="text-center text-3xl font-bold text-white">
             Reset your password
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-400">
             {step === 1 && "Enter your email to receive a verification code"}
             {step === 2 && "Enter the 6-digit code sent to your email"}
             {step === 3 && "Enter your new password"}
@@ -192,28 +197,31 @@ const ForgotPassword = () => {
         {step === 1 && (
           <form onSubmit={handleSendOtp} className="mt-8 space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
                 Email address
               </label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-gray-500" />
                 </div>
                 <input
                   id="email"
                   name="email"
                   type="email"
                   required
-                  className={`appearance-none relative block w-full px-3 py-2 pl-10 border ${
-                    errors.email ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                  className={`appearance-none relative block w-full px-3 py-3 pl-10 border ${
+                    errors.email ? 'border-red-500' : 'border-gray-600'
+                  } bg-gray-700 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
                   placeholder="Enter your email"
                   value={formData.email}
                   onChange={handleChange}
                 />
               </div>
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                <p className="mt-1 text-sm text-red-400 flex items-center">
+                  <span className="w-1 h-1 bg-red-400 rounded-full mr-2"></span>
+                  {errors.email}
+                </p>
               )}
             </div>
 
@@ -221,7 +229,7 @@ const ForgotPassword = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
               >
                 {loading ? (
                   <div className="flex items-center">
@@ -240,7 +248,7 @@ const ForgotPassword = () => {
         {step === 2 && (
           <form onSubmit={handleVerifyOtp} className="mt-8 space-y-6">
             <div>
-              <label htmlFor="otp" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="otp" className="block text-sm font-medium text-gray-300">
                 Verification Code
               </label>
               <div className="mt-1">
@@ -250,18 +258,21 @@ const ForgotPassword = () => {
                   type="text"
                   maxLength="6"
                   required
-                  className={`appearance-none relative block w-full px-3 py-2 border ${
-                    errors.otp ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-center text-lg tracking-widest`}
+                  className={`appearance-none relative block w-full px-3 py-3 border ${
+                    errors.otp ? 'border-red-500' : 'border-gray-600'
+                  } bg-gray-700 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-center text-lg tracking-widest`}
                   placeholder="000000"
                   value={formData.otp}
                   onChange={handleChange}
                 />
               </div>
               {errors.otp && (
-                <p className="mt-1 text-sm text-red-600">{errors.otp}</p>
+                <p className="mt-1 text-sm text-red-400 flex items-center">
+                  <span className="w-1 h-1 bg-red-400 rounded-full mr-2"></span>
+                  {errors.otp}
+                </p>
               )}
-              <p className="mt-2 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-gray-400">
                 Enter the 6-digit code sent to {formData.email}
               </p>
             </div>
@@ -270,14 +281,14 @@ const ForgotPassword = () => {
               <button
                 type="button"
                 onClick={goBack}
-                className="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="flex-1 py-3 px-4 border border-gray-600 rounded-md text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-800 transition-all duration-200"
               >
                 Back
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
               >
                 {loading ? (
                   <div className="flex items-center justify-center">
@@ -297,21 +308,21 @@ const ForgotPassword = () => {
           <form onSubmit={handleResetPassword} className="mt-8 space-y-6">
             <div className="space-y-4">
               <div>
-                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-300">
                   New Password
                 </label>
                 <div className="mt-1 relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+                    <Lock className="h-5 w-5 text-gray-500" />
                   </div>
                   <input
                     id="newPassword"
                     name="newPassword"
                     type={showPassword ? 'text' : 'password'}
                     required
-                    className={`appearance-none relative block w-full px-3 py-2 pl-10 pr-10 border ${
-                      errors.newPassword ? 'border-red-300' : 'border-gray-300'
-                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                    className={`appearance-none relative block w-full px-3 py-3 pl-10 pr-12 border ${
+                      errors.newPassword ? 'border-red-500' : 'border-gray-600'
+                    } bg-gray-700 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
                     placeholder="Enter new password"
                     value={formData.newPassword}
                     onChange={handleChange}
@@ -322,33 +333,36 @@ const ForgotPassword = () => {
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400" />
+                      <EyeOff className="h-5 w-5 text-gray-500 hover:text-gray-400" />
                     ) : (
-                      <Eye className="h-5 w-5 text-gray-400" />
+                      <Eye className="h-5 w-5 text-gray-500 hover:text-gray-400" />
                     )}
                   </button>
                 </div>
                 {errors.newPassword && (
-                  <p className="mt-1 text-sm text-red-600">{errors.newPassword}</p>
+                  <p className="mt-1 text-sm text-red-400 flex items-center">
+                    <span className="w-1 h-1 bg-red-400 rounded-full mr-2"></span>
+                    {errors.newPassword}
+                  </p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
                   Confirm New Password
                 </label>
                 <div className="mt-1 relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+                    <Lock className="h-5 w-5 text-gray-500" />
                   </div>
                   <input
                     id="confirmPassword"
                     name="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
                     required
-                    className={`appearance-none relative block w-full px-3 py-2 pl-10 pr-10 border ${
-                      errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                    className={`appearance-none relative block w-full px-3 py-3 pl-10 pr-12 border ${
+                      errors.confirmPassword ? 'border-red-500' : 'border-gray-600'
+                    } bg-gray-700 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
                     placeholder="Confirm new password"
                     value={formData.confirmPassword}
                     onChange={handleChange}
@@ -359,14 +373,17 @@ const ForgotPassword = () => {
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400" />
+                      <EyeOff className="h-5 w-5 text-gray-500 hover:text-gray-400" />
                     ) : (
-                      <Eye className="h-5 w-5 text-gray-400" />
+                      <Eye className="h-5 w-5 text-gray-500 hover:text-gray-400" />
                     )}
                   </button>
                 </div>
                 {errors.confirmPassword && (
-                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                  <p className="mt-1 text-sm text-red-400 flex items-center">
+                    <span className="w-1 h-1 bg-red-400 rounded-full mr-2"></span>
+                    {errors.confirmPassword}
+                  </p>
                 )}
               </div>
             </div>
@@ -375,14 +392,14 @@ const ForgotPassword = () => {
               <button
                 type="button"
                 onClick={goBack}
-                className="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="flex-1 py-3 px-4 border border-gray-600 rounded-md text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-800 transition-all duration-200"
               >
                 Back
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
               >
                 {loading ? (
                   <div className="flex items-center justify-center">
@@ -401,4 +418,4 @@ const ForgotPassword = () => {
   );
 };
 
-export default ForgotPassword; 
+export default ForgotPassword;

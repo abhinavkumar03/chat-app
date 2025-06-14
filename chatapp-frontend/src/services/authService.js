@@ -1,8 +1,8 @@
 import axios from 'axios';
-import { httpClient } from '../config/AxiosHelper';
+import { baseURL, httpClient } from '../config/AxiosHelper';
 
-// const API_BASE_URL = 'http://localhost:8080/api/auth';
-const API_BASE_URL = 'https://chat-backend-p6dq.onrender.com/api/auth';
+const API_BASE_URL = `${baseURL}/api/auth`;
+
 
 // Create axios instance with base configuration
 const authApi = axios.create({
@@ -13,13 +13,19 @@ const authApi = axios.create({
 });
 
 // Add token to requests if available
-authApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+authApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Token is invalid or expired
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login'; // or show a modal/toast if you prefer
+    }
+    return Promise.reject(error);
   }
-  return config;
-});
+);
+
 
 // Handle response errors
 authApi.interceptors.response.use(
