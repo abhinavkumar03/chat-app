@@ -1,5 +1,19 @@
 package com.abhinav.chatapp.chatapp_backend.config;
 
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+@Component
+@ConfigurationProperties(prefix = "app")
 public class AppConstants {
-    public static final String FRONT_END_BASE_URL= "https://chat-frontend-abi2.onrender.com/";
+
+    private String frontEndBaseUrl;
+
+    public String getFrontEndBaseUrl() {
+        return frontEndBaseUrl;
+    }
+
+    public void setFrontEndBaseUrl(String frontEndBaseUrl) {
+        this.frontEndBaseUrl = frontEndBaseUrl;
+    }
 }
