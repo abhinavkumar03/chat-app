@@ -2,16 +2,23 @@ package com.abhinav.chatapp.chatapp_backend.security;
 
 import com.abhinav.chatapp.chatapp_backend.entities.User;
 import com.abhinav.chatapp.chatapp_backend.repositories.UserRepository;
+import com.abhinav.chatapp.chatapp_backend.utils.ActiveUserStore;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
+import org.springframework.web.socket.messaging.SessionConnectedEvent;
+import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
 import java.util.List;
@@ -19,15 +26,12 @@ import java.util.Map;
 import java.util.Optional;
 
 @Component
+@RequiredArgsConstructor
+@Slf4j
 public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
-
-    public WebSocketHandshakeInterceptor(JwtUtil jwtUtil, UserRepository userRepository) {
-        this.jwtUtil = jwtUtil;
-        this.userRepository = userRepository;
-    }
 
     @Override
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
@@ -46,6 +50,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                 try {
                     Claims claims = jwtUtil.validateToken(token);
                     String email = claims.getSubject();
+                    attributes.put("email", email);
                     Optional<User> optionalUser = userRepository.findByEmail(email);
                     if (optionalUser.isPresent()) {
                         User user = optionalUser.get();

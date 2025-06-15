@@ -1,210 +1,50 @@
 package com.abhinav.chatapp.chatapp_backend.controllers;
 
-
-import com.abhinav.chatapp.chatapp_backend.config.AppConstants;
-import com.abhinav.chatapp.chatapp_backend.entities.User;
 import com.abhinav.chatapp.chatapp_backend.playload.*;
-import com.abhinav.chatapp.chatapp_backend.repositories.UserRepository;
-import com.abhinav.chatapp.chatapp_backend.services.EmailService;
-import org.springframework.http.HttpStatus;
-import com.abhinav.chatapp.chatapp_backend.security.JwtUtil;
+import com.abhinav.chatapp.chatapp_backend.services.AuthService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.Random;
 
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
-    private final UserRepository userRepository;
-    private final JwtUtil jwtUtil;
-    private final EmailService emailService;
 
-    public AuthController(UserRepository userRepository, JwtUtil jwtUtil, EmailService emailService) {
-        this.userRepository = userRepository;
-        this.jwtUtil = jwtUtil;
-        this.emailService = emailService;
-    }
+    private final AuthService authService;
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody SignupRequest request){
-        if(userRepository.findByEmail(request.getEmail()).isPresent()){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email already exists");
-        }
-        User user = User.builder()
-                .name(request.getName())
-                .email(request.getEmail())
-                .isActive(true)
-                .password(new BCryptPasswordEncoder().encode(request.getPassword()))
-                .createdAt(LocalDateTime.now().toString())
-                .updatedAt(LocalDateTime.now().toString())
-                .build();
-        userRepository.save(user);
-        return ResponseEntity.ok("User registered successfully");
+    public ResponseEntity<?> signup(@RequestBody SignupRequest request) {
+        return authService.signup(request);
     }
 
     @PutMapping("/update")
     public ResponseEntity<?> updateProfile(@RequestBody UpdateProfileRequest request) {
-        Optional<User> optionalUser = userRepository.findById(request.getUserId());
-
-        if (optionalUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("User not found");
-        }
-
-        User user = optionalUser.get();
-
-        user.setName(request.getName());
-        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
-            user.setPassword(new BCryptPasswordEncoder().encode(request.getPassword()));
-        }
-        user.setUpdatedAt(LocalDateTime.now().toString());
-
-        userRepository.save(user);
-
-        return ResponseEntity.ok("User updated successfully");
+        return authService.updateProfile(request);
     }
 
     @PutMapping("/status")
     public ResponseEntity<?> updateUserStatus(@RequestBody UserStatusUpdateRequest request) {
-        System.out.println("Full request: " + request);
-
-
-        Optional<User> optionalUser = userRepository.findById(request.getUserId());
-
-        if (optionalUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
-        }
-
-        User user = optionalUser.get();
-        user.setActive(request.getIsActive());
-
-        user.setUpdatedAt(LocalDateTime.now().toString());
-        userRepository.save(user);
-
-        String statusMsg = request.getIsActive() ? "activated" : "deactivated";
-        return ResponseEntity.ok("User " + statusMsg + " successfully");
+        return authService.updateUserStatus(request);
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
-
-        if (optionalUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
-        }
-
-        User user = optionalUser.get();
-
-        if (!user.isActive()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("User is deactivated");
-        }
-
-        boolean passwordMatch = new BCryptPasswordEncoder().matches(request.getPassword(), user.getPassword());
-
-        if (!passwordMatch) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
-        }
-
-        String token = jwtUtil.generateToken(user);
-
-        LoginResponse response = new LoginResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.isEmailVerified(),
-                token
-        );
-
-        return ResponseEntity.ok(response);
+        return authService.login(request);
     }
 
     @PutMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
-        Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
-
-        if (optionalUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
-        }
-
-        User user = optionalUser.get();
-
-        user.setPassword(new BCryptPasswordEncoder().encode(request.getNewPassword()));
-        user.setUpdatedAt(LocalDateTime.now().toString());
-
-        userRepository.save(user);
-
-        return ResponseEntity.ok("Password reset successfully");
+        return authService.resetPassword(request);
     }
 
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@RequestBody EmailRequest request) {
-        Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
-
-        if (optionalUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
-        }
-
-        User user = optionalUser.get();
-
-        String otp = String.valueOf(new Random().nextInt(900000) + 100000); // 6-digit OTP
-
-        user.setEmailOtp(otp);
-        user.setOtpGeneratedAt(LocalDateTime.now());
-        userRepository.save(user);
-
-        try {
-            String subject = "Your OTP Code";
-            String body = "<p>Hello <b>" + user.getName() + "</b>,</p>" +
-                    "<p>Your OTP is: <b>" + otp + "</b></p>" +
-                    "<p>This OTP is valid for 10 minutes.</p>" +
-                    "<br><p>Regards,<br>ChatApp Team</p>";
-
-            emailService.sendEmail(user.getEmail(), subject, body);
-            return ResponseEntity.ok("OTP sent successfully to email");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to send OTP email: " + e.getMessage());
-        }
-
+        return authService.sendOtp(request);
     }
-
 
     @PostMapping("/verify-otp")
     public ResponseEntity<?> verifyOtp(@RequestBody VerifyOtpRequest request) {
-        Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
-
-        if (optionalUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
-        }
-
-        User user = optionalUser.get();
-
-        if (!request.getOtp().equals(user.getEmailOtp())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid OTP");
-        }
-
-        Duration diff = Duration.between(user.getOtpGeneratedAt(), LocalDateTime.now());
-        if (diff.toMinutes() > 10) {
-            return ResponseEntity.status(HttpStatus.GONE).body("OTP expired");
-        }
-
-        user.setEmailVerified(true);
-        user.setEmailOtp(null);
-        user.setOtpGeneratedAt(null);
-        user.setUpdatedAt(LocalDateTime.now().toString());
-
-        userRepository.save(user);
-
-        return ResponseEntity.ok("Email verified successfully");
+        return authService.verifyOtp(request);
     }
-
-
-
-
 }

@@ -1,6 +1,7 @@
 package com.abhinav.chatapp.chatapp_backend.config;
 
 import com.abhinav.chatapp.chatapp_backend.security.WebSocketHandshakeInterceptor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -9,34 +10,22 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 @Configuration
 @EnableWebSocketMessageBroker
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
-    private final AppConstants appConstants;
+
     private final WebSocketHandshakeInterceptor webSocketHandshakeInterceptor;
-
-    public WebSocketConfig(AppConstants appConstants, WebSocketHandshakeInterceptor webSocketHandshakeInterceptor){
-        this.appConstants = appConstants;
-        this.webSocketHandshakeInterceptor = webSocketHandshakeInterceptor;
-    }
-
-    @Override
-    public void configureMessageBroker(MessageBrokerRegistry config) {
-
-        config.enableSimpleBroker("/topic");
-        // /topic/messages
-
-        config.setApplicationDestinationPrefixes("/app");
-        // /app/chat
-        // server-side: @MessagingMapping("/chat)
-
-
-    }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/chat")//connection establishment
-                .setAllowedOrigins(appConstants.getFrontEndBaseUrl())
+        registry.addEndpoint("/ws")
+                .setAllowedOrigins("*")
                 .addInterceptors(webSocketHandshakeInterceptor)
                 .withSockJS();
     }
-    // /chat endpoint par connection apka establish hoga
+
+    @Override
+    public void configureMessageBroker(MessageBrokerRegistry registry) {
+        registry.enableSimpleBroker("/topic");
+        registry.setApplicationDestinationPrefixes("/app");
+    }
 }

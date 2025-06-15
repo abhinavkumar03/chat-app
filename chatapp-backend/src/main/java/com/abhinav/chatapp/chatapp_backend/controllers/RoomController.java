@@ -1,74 +1,51 @@
 package com.abhinav.chatapp.chatapp_backend.controllers;
 
-import com.abhinav.chatapp.chatapp_backend.config.AppConstants;
 import com.abhinav.chatapp.chatapp_backend.entities.Message;
 import com.abhinav.chatapp.chatapp_backend.entities.Room;
-import com.abhinav.chatapp.chatapp_backend.repositories.RoomRepository;
-import lombok.Getter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
+import com.abhinav.chatapp.chatapp_backend.playload.RoomUserRequest;
+import com.abhinav.chatapp.chatapp_backend.services.RoomService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Repository;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/rooms")
+@RequiredArgsConstructor
 public class RoomController {
 
-    private RoomRepository roomRepository;
+    private final RoomService roomService;
 
-
-    public RoomController(RoomRepository roomRepository) {
-        this.roomRepository = roomRepository;
-    }
-
-    //create room
     @PostMapping
-    public ResponseEntity<?> createRoom(@RequestBody String roomId) {
-
-        if (roomRepository.findByRoomId(roomId) != null) {
-            //room is already there
-            return ResponseEntity.badRequest().body("Room already exists!");
-
-        }
-
-        //create new room
-        Room room = new Room();
-        room.setRoomId(roomId);
-        Room savedRoom = roomRepository.save(room);
-        return ResponseEntity.status(HttpStatus.CREATED).body(room);
+    public ResponseEntity<?> createRoom(@RequestBody RoomUserRequest request) {
+        return ResponseEntity.ok(roomService.createRoom(request.getRoomId(), request.getUserId()));
     }
 
     @GetMapping
     public ResponseEntity<?> getAllRooms() {
-        List<Room> rooms = roomRepository.findAll();
-        if (rooms.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No rooms found.");
-        }
-        return ResponseEntity.ok(rooms);
+        return ResponseEntity.ok(roomService.getRooms());
     }
 
-
-    //get room: join
-    @PutMapping("/{roomId}")
-    public ResponseEntity<?> joinRoom(
-            @PathVariable String roomId
-    ) {
-
-        Room room = roomRepository.findByRoomId(roomId);
-        if (room == null) {
-            return ResponseEntity.badRequest()
-                    .body("Room not found!!");
-        }
-        return ResponseEntity.ok(room);
+    @PostMapping("/join")
+    public ResponseEntity<?> joinRoom(@RequestBody RoomUserRequest request) {
+        return ResponseEntity.ok(roomService.addUserToRoom(request.getRoomId(), request.getUserId()));
     }
 
-    //get messages of room
+    @PostMapping("/leave")
+    public ResponseEntity<Room> leaveRoom(@RequestBody RoomUserRequest request) {
+        return ResponseEntity.ok(roomService.removeUserFromRoom(request.getRoomId(), request.getUserId()));
+    }
+
+    @PostMapping("/promote")
+    public ResponseEntity<Room> promote(@RequestBody RoomUserRequest request) {
+        return ResponseEntity.ok(roomService.promoteUser(request.getRoomId(), request.getUserId()));
+    }
+
+    @PostMapping("/demote")
+    public ResponseEntity<Room> demote(@RequestBody RoomUserRequest request) {
+        return ResponseEntity.ok(roomService.demoteUser(request.getRoomId(), request.getUserId()));
+    }
 
     @GetMapping("/{roomId}/messages")
     public ResponseEntity<List<Message>> getMessages(
@@ -76,20 +53,6 @@ public class RoomController {
             @RequestParam(value = "page", defaultValue = "0", required = false) int page,
             @RequestParam(value = "size", defaultValue = "20", required = false) int size
     ) {
-        Room room = roomRepository.findByRoomId(roomId);
-        if (room == null) {
-            return ResponseEntity.badRequest().build()
-                    ;
-        }
-        //get messages :
-        //pagination
-        List<Message> messages = room.getMessages();
-        int start = Math.max(0, messages.size() - (page + 1) * size);
-        int end = Math.min(messages.size(), start + size);
-        List<Message> paginatedMessages = messages.subList(start, end);
-        return ResponseEntity.ok(paginatedMessages);
-
+        return roomService.getPaginatedMessages(roomId, page, size);
     }
-
-
 }

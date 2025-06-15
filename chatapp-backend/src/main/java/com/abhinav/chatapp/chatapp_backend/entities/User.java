@@ -1,5 +1,6 @@
 package com.abhinav.chatapp.chatapp_backend.entities;
 
+import com.abhinav.chatapp.chatapp_backend.enums.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,14 +22,15 @@ public class User {
     private String name;
     private String email;
     private String password;
-    private String role;
+    private Role role;
 
-    private boolean isActive = true;
+    private boolean isActive = false;
     private boolean isEmailVerified = false;
 
     private String emailOtp;
     private LocalDateTime otpGeneratedAt;
 
-    private String createdAt;
-    private String updatedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
 }
