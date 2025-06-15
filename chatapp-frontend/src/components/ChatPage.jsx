@@ -2,14 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { MdAttachFile, MdSend, MdLogout, MdPerson, MdRoom } from "react-icons/md";
 import useChatContext from "../context/ChatContext";
 import { useNavigate, useParams } from "react-router";
-import SockJS from "sockjs-client";
-import { Stomp } from "@stomp/stompjs";
 import toast from "react-hot-toast";
-import { baseURL } from "../config/AxiosHelper";
 import { getMessagess } from "../services/RoomService";
 import { timeAgo } from "../config/helper";
 import { useAuth } from "../context/AuthContext";
 import Navigation from "./Navigation";
+import websocketService from "../services/websocketService";
 
 import { LogOut, User, Settings, MessageSquare, Send, Slash, ChevronsRight, Info, Zap } from 'lucide-react';
 
@@ -34,7 +32,6 @@ const ChatPage = () => {
   const [newMessageIds, setNewMessageIds] = useState(new Set());
   const inputRef = useRef(null);
   const chatBoxRef = useRef(null);
-  const [stompClient, setStompClient] = useState(null);
 
   // Use URL roomId if available, otherwise use context roomId
   const currentRoomId = urlRoomId || roomId;
@@ -74,82 +71,74 @@ const ChatPage = () => {
     }
   }, [messages]);
 
-  // WebSocket connection setup
+  // WebSocket connection setup using the service
   useEffect(() => {
-    if (connected && currentRoomId && !stompClient) {
-      console.log("Attempting WebSocket connection to:", `${baseURL}/chat`);
+    if (websocketService.isConnected()) return;
+    if (connected && currentRoomId) {
       const token = localStorage.getItem("token");
-      const sock = new SockJS(`${baseURL}/chat?token=${token}`);
-      const client = Stomp.over(sock);
-
-      client.connect({}, () => {
-        console.log("WebSocket connected successfully");
-        setStompClient(client);
-        toast.success("Connected to chat!");
-
-        client.subscribe(`/topic/room/${currentRoomId}`, (message) => {
-          console.log("Received message:", message);
-          const newMessage = JSON.parse(message.body);
-          const messageId = `${newMessage.sender}-${newMessage.timeStamp || newMessage.timestamp || Date.now()}`;
+      console.log("Token:", token);
+      // Connect to WebSocket using the service
+      websocketService.connect(token)
+        .then(() => {
+          toast.success("Connected to chat!");
           
-          setMessages((prev) => [...prev, newMessage]);
-          setNewMessageIds((prev) => new Set([...prev, messageId]));
+          // Subscribe to room messages
+          const messageHandler = (messageData) => {
+            console.log("Received message via service:", messageData);
+            const messageId = `${messageData.sender}-${messageData.timeStamp || messageData.timestamp || Date.now()}`;
+            
+            setMessages((prev) => [...prev, messageData]);
+            setNewMessageIds((prev) => new Set([...prev, messageId]));
+            
+            // Remove animation class after animation completes
+            setTimeout(() => {
+              setNewMessageIds((prev) => {
+                const updated = new Set(prev);
+                updated.delete(messageId);
+                return updated;
+              });
+            }, 600); // Match animation duration
+          };
           
-          // Remove animation class after animation completes
-          setTimeout(() => {
-            setNewMessageIds((prev) => {
-              const updated = new Set(prev);
-              updated.delete(messageId);
-              return updated;
-            });
-          }, 600); // Match animation duration
+          websocketService.subscribeToRoom(currentRoomId, messageHandler);
+        })
+        .catch((error) => {
+          console.error("WebSocket connection error via service:", error);
+          toast.error("Failed to connect to chat");
         });
-      }, (error) => {
-        console.error("WebSocket connection error:", error);
-        toast.error("Failed to connect to chat");
-        setStompClient(null);
-      });
     }
 
     return () => {
-      if (stompClient) {
-        console.log("Disconnecting WebSocket");
-        stompClient.disconnect(() => {
-          console.log("WebSocket disconnected");
-        });
-        setStompClient(null);
+      // Cleanup: unsubscribe from room and disconnect
+      if (currentRoomId) {
+        websocketService.unsubscribeFromRoom(currentRoomId);
       }
+      websocketService.disconnect();
     };
   }, [currentRoomId, connected]);
 
-
-
   const sendMessage = () => {
-    if (stompClient?.connected && input.trim()) {
+    if (websocketService.isConnected() && input.trim()) {
       const message = {
         sender: currentUser || user?.name || 'Anonymous',
         content: input.trim(),
         roomId: currentRoomId,
       };
 
-      stompClient.send(
-        `/app/sendMessage/${currentRoomId}`,
-        {},
-        JSON.stringify(message)
-      );
-
-      setInput("");
+      const success = websocketService.sendMessage(currentRoomId, message);
+      
+      if (success) {
+        setInput("");
+      } else {
+        toast.error("Failed to send message");
+      }
     } else {
       toast.error("Message cannot be sent. Not connected or input is empty.");
     }
   };
 
-
-
   function handleLogout() {
-    if (stompClient) {
-      stompClient.disconnect();
-    }
+    websocketService.disconnect();
     setConnected(false);
     setRoomId("");
     setCurrentUser("");

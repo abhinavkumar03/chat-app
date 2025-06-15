@@ -32,7 +32,6 @@ public class WebSocketEventListener {
         if (userEmail != null) {
             activeUserStore.addUser(userEmail);
             userRepository.findByEmail(userEmail).ifPresent(user -> {
-                user.setActive(true);
                 userRepository.save(user);
                 log.info("User connected: {}", userEmail);
             });
@@ -46,7 +45,6 @@ public class WebSocketEventListener {
         if (userEmail != null) {
             activeUserStore.removeUser(userEmail);
             userRepository.findByEmail(userEmail).ifPresent(user -> {
-                user.setActive(false);
                 userRepository.save(user);
                 log.info("User disconnected: {}", userEmail);
             });

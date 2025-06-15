@@ -21,9 +21,9 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final AppConstants appConstants;
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/auth/**", "/websocket/**", "/topic/**", "/app/**",  "/chat/**",
+            "/api/auth/**", "/websocket/**", "/topic/**", "/app/**", "/chat/**",
             "/info/**", "/iframe/**", "/xhr/**", "/xhr_send/**", "/xhr_streaming/**",
-            "/eventsource/**", "/jsonp/**"
+            "/eventsource/**", "/jsonp/**", "/ws/**", "/ws", "/ws/info",
     };
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, AppConstants appConstants) {

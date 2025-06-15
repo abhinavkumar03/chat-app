@@ -4,6 +4,7 @@ import com.abhinav.chatapp.chatapp_backend.entities.Message;
 import com.abhinav.chatapp.chatapp_backend.entities.Room;
 import com.abhinav.chatapp.chatapp_backend.playload.RoomUserRequest;
 import com.abhinav.chatapp.chatapp_backend.services.RoomService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +24,7 @@ public class RoomController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getAllRooms() {
+    public ResponseEntity<?> getAllRooms(HttpServletRequest request) {
         return ResponseEntity.ok(roomService.getRooms());
     }
 

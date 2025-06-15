@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { MessageCircle, Users, Plus, RefreshCw, X, Menu, ArrowRight } from "lucide-react";
 import toast from "react-hot-toast";
-import { createRoomApi, getAllRoomsApi, joinChatApi } from "../services/RoomService";
+import { roomService } from "../services/RoomService";
 import useChatContext from "../context/ChatContext";
 import { useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext";
@@ -63,18 +63,18 @@ const JoinCreateChat = () => {
     setIsJoining(true);
     
     try {
-      const room = await joinChatApi(roomToJoin);
-      toast.success("Joined successfully!");
-      setCurrentUser(detail.userName);
-      setRoomId(room.roomId);
-      setConnected(true);
-      navigate(`/chat/${room.roomId}`);
-    } catch (error) {
-      if (error.status == 400) {
-        toast.error(error.response.data);
+      const result = await roomService.joinRoom(roomToJoin, user?.id || detail.userName);
+      if (result.success) {
+        toast.success("Joined successfully!");
+        setCurrentUser(detail.userName);
+        setRoomId(result.data.roomId);
+        setConnected(true);
+        navigate(`/chat/${result.data.roomId}`);
       } else {
-        toast.error("Error in joining room");
+        toast.error(result.error);
       }
+    } catch (error) {
+      toast.error("Error in joining room");
       console.log(error);
     } finally {
       setIsJoining(false);
@@ -101,38 +101,38 @@ const JoinCreateChat = () => {
     }
     setIsJoining(true);
     try {
-      const room = await joinChatApi(roomToJoin);
-      toast.success("Joined successfully!");
-      setCurrentUser(user.name);
-      setRoomId(room.roomId);
-      setConnected(true);
-      navigate(`/chat/${room.roomId}`);
-    } catch (error) {
-      if (error.status === 400) {
-        toast.error(error.response.data);
+      const result = await roomService.joinRoom(roomToJoin, user?.id || user.name);
+      if (result.success) {
+        toast.success("Joined successfully!");
+        setCurrentUser(user.name);
+        setRoomId(result.data.roomId);
+        setConnected(true);
+        navigate(`/chat/${result.data.roomId}`);
       } else {
-        toast.error("Error in joining room");
+        toast.error(result.error);
       }
+    } catch (error) {
+      toast.error("Error in joining room");
       console.log(error);
     } finally {
       setIsJoining(false);
     }
   }
+
   async function getRooms() {
     setLoadingRooms(true);
     try {
-      const fetchedRooms = await getAllRoomsApi();
-      console.log(fetchedRooms);
-      setRooms(fetchedRooms);
-      setShowSidebar(true);
+      const result = await roomService.getAllRooms();
+      if (result.success) {
+        console.log(result.data);
+        setRooms(result.data);
+        setShowSidebar(true);
+      } else {
+        toast.error(result.error);
+      }
     } catch (error) {
       console.log(error);
-      if (error.status == 400) {
-        toast.error(error.response.data);
-      } else {
-        toast.error("Error in loading rooms");
-      }
-      console.log(error);
+      toast.error("Error in loading rooms");
     } finally {
       setLoadingRooms(false);
     }
@@ -144,20 +144,23 @@ const JoinCreateChat = () => {
       console.log(detail);
       
       try {
-        const response = await createRoomApi(detail.roomId);
-        console.log(response);
-        toast.success("Room Created Successfully !!");
-        setCurrentUser(detail.userName);
-        setRoomId(response.roomId);
-        setConnected(true);
-        navigate(`/chat/${response.roomId}`);
+        const result = await roomService.createRoom({
+          roomId: detail.roomId,
+          userId: user?.id || detail.userName
+        });
+        if (result.success) {
+          console.log(result.data);
+          toast.success("Room Created Successfully !!");
+          setCurrentUser(detail.userName);
+          setRoomId(result.data.roomId);
+          setConnected(true);
+          navigate(`/chat/${result.data.roomId}`);
+        } else {
+          toast.error(result.error);
+        }
       } catch (error) {
         console.log(error);
-        if (error.status == 400) {
-          toast.error("Room already exists !!");
-        } else {
-          toast.error("Error in creating room");
-        }
+        toast.error("Error in creating room");
       } finally {
         setIsCreating(false);
       }
@@ -228,7 +231,7 @@ const JoinCreateChat = () => {
                         {room.roomId}
                       </h3>
                       <p className="text-sm text-gray-400">
-                        {room.userCount || 0} users
+                        {room.participants ? Object.keys(room.participants).length : 0} users
                       </p>
                     </div>
                   </div>

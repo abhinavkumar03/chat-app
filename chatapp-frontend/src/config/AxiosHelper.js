@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export const baseURL = import.meta.env.VITE_API_URL ?? 'https://chat-backend-p6dq.onrender.com';
+export const baseURL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
 
 export const httpClient = axios.create({
   baseURL: baseURL,

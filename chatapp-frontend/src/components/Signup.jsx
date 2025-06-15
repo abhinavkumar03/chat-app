@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Lock, Eye, EyeOff, UserPlus, Check } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, UserPlus, Check, Shield } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -10,7 +11,8 @@ const Signup = () => {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: 'MEMBER'
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -53,6 +55,10 @@ const Signup = () => {
       newErrors.confirmPassword = 'Passwords do not match';
     }
 
+    if (!formData.role) {
+      newErrors.role = 'Role is required';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -70,7 +76,8 @@ const Signup = () => {
       const result = await signup({
         name: formData.name.trim(),
         email: formData.email.trim(),
-        password: formData.password
+        password: formData.password,
+        role: formData.role
       });
 
       if (result.success) {
@@ -202,6 +209,40 @@ const Signup = () => {
                 <p className="text-sm text-red-400 flex items-center mt-1">
                   <span className="w-1 h-1 bg-red-400 rounded-full mr-2"></span>
                   {errors.email}
+                </p>
+              )}
+            </div>
+
+            {/* Role Field */}
+            <div className="space-y-2">
+              <label htmlFor="role" className="block text-sm font-medium text-gray-300">
+                Role
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Shield className="h-5 w-5 text-gray-500" />
+                </div>
+                <select
+                  id="role"
+                  name="role"
+                  required
+                  className={`block w-full pl-10 pr-3 py-3 border ${
+                    errors.role 
+                      ? 'border-red-500' 
+                      : 'border-gray-600'
+                  } bg-gray-700 text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                  value={formData.role}
+                  onChange={handleChange}
+                >
+                  <option value="MEMBER">Member</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="SUPER_ADMIN">Super Admin</option>
+                </select>
+              </div>
+              {errors.role && (
+                <p className="text-sm text-red-400 flex items-center mt-1">
+                  <span className="w-1 h-1 bg-red-400 rounded-full mr-2"></span>
+                  {errors.role}
                 </p>
               )}
             </div>
