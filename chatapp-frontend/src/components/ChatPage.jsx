@@ -80,6 +80,7 @@ const ChatPage = () => {
       // Connect to WebSocket using the service
       websocketService.connect(token)
         .then(() => {
+          console.log("Connected:", connected);
           toast.success("Connected to chat!");
           
           // Subscribe to room messages
